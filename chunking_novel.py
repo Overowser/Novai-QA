@@ -25,7 +25,7 @@ def get_novel_id(novel_title, cursor, conn):
         return None
 
 
-def segment_text(text, tokenizer=None):
+def segment_text(text, max_chunk_size, overlap, tokenizer=None):
     paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
     paragraphs = [(p, len(tokenizer.encode(p, add_special_tokens=False))) for p in paragraphs]
 
@@ -49,44 +49,65 @@ def segment_text(text, tokenizer=None):
 
             paragraphs = pars
 
+    return paragraphs
+
 
 def chunk_text(text, max_chunk_size=512, overlap=200, tokenizer=None):
-    
-    paragraphs = segment_text(text, tokenizer=tokenizer)
-
+    """
+    This function chunks the text into smaller pieces based on the max_chunk_size and overlap.
+    It uses the tokenizer to calculate the size of each chunk.
+    If the first paragraph is too large, it will reduce the overlap down to a minimum of 0.
+    It will still try to keep the overlap as large as possible, but it will not exceed the overlap size.
+    When the overlap is done, it will add the next paragraph to the chunk until the max_chunk_size is reached.
+    It will then create a new chunk and repeat the process until all paragraphs are processed.
+    The first paragraph that is added first to the chunk should have a size less than the max_chunk_size.
+    Really hopes this doesn't break, the logic of it all melted my brain.
+    """
+    paragraphs = segment_text(text,max_chunk_size, overlap, tokenizer=tokenizer)
 
     chunks = []
     current_chunk = []
     current_chunk_size = 0
-    overlap_buffer = []
-    new_overlap = overlap
+
+    k = 0
+    finished = False
 
     for i, (paragraph, size) in enumerate(paragraphs):
-        if current_chunk_size + size <= max_chunk_size:
+        if i != k:
+            continue
+        if not current_chunk:
             current_chunk.append(paragraph)
             current_chunk_size += size
-        else:
-            # Finalize current chunk
-            chunks.append("\n".join(current_chunk))
-
-            # Prepare overlap buffer (from the end of current chunk)
-            overlap_buffer = []
-            temp_size = 0
-            new_overlap
-
-            for p, s in reversed([(p, len(tokenizer.encode(p, add_special_tokens=False))) for p in current_chunk]):
-                if temp_size + s <= overlap:
-                    overlap_buffer.insert(0, p)
-                    temp_size += s
+            j = i -1
+            while current_chunk_size <= size + overlap:
+                if j >= 0:
+                    if current_chunk_size <= max_chunk_size- paragraphs[j][1]:
+                        current_chunk.insert(0, paragraphs[j][0])
+                        current_chunk_size += paragraphs[j][1]
+                        j -= 1
+                    else:
+                        break
                 else:
-                    break 
+                    break
 
-            # Start new chunk with overlap buffer and current paragraph
-            current_chunk = overlap_buffer + [paragraph]
-            current_chunk_size = temp_size + size
+            while current_chunk_size <= max_chunk_size:
+                k += 1
+                if k < len(paragraphs) and current_chunk_size + paragraphs[k][1] <= max_chunk_size:
+                    current_chunk.append(paragraphs[k][0])
+                    current_chunk_size += paragraphs[k][1]
+                elif k >= len(paragraphs):
+                    finished = True
+                    chunks.append(" ".join(current_chunk))
+                    break
+                elif current_chunk_size + paragraphs[k][1] > max_chunk_size:
+                    chunks.append(" ".join(current_chunk))
+                    break
 
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
+            current_chunk = []
+            current_chunk_size = 0
+        
+        if finished:
+            break
 
     return chunks
 
@@ -167,4 +188,6 @@ chunking_novel("Infinite Mana In The Apocalypse")
 
 # TODO:
 # 1. Make it async
-# 2. Make it check if the chunk already exists in the database before inserting it
+# 2. Optimize the postgres queries
+# 3. Add more error handling
+# 4. Add more logging
