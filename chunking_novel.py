@@ -2,6 +2,7 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
+from datetime import datetime
 
 import nltk
 nltk.download('punkt')
@@ -181,9 +182,13 @@ def chunking_novel(novel_title, max_chunk_size=512, overlap=200, embedding_model
         print(f"Chapter ID {chapter_id} has {num_chunks} chunks.")
     return
 
-# test
-chunking_novel("Infinite Mana In The Apocalypse")
-# "Infinite Mana In The Apocalypse"
+
+if __name__ == "__main__":
+    startTime = datetime.now()
+    print("Starting refresh_database task")
+    chunking_novel("Supreme Magus")
+    print(f"Time taken: {datetime.now() - startTime}")
+    # "Infinite Mana In The Apocalypse"
 
 
 # TODO:

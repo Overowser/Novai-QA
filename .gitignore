@@ -6,3 +6,4 @@ data
 app
 tests
 *.md
+*.index
