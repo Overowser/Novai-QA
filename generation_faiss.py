@@ -1,5 +1,5 @@
 import ollama
-from retrieval import retrieve_context
+from retrieval_faiss import retrieve_context
 import faiss
 
 def generate_response(query: str) -> str:
