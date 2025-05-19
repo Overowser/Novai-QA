@@ -1,10 +1,8 @@
 import psycopg2
-from sentence_transformers import SentenceTransformer
-
 from dotenv import load_dotenv
 import os
-
-import chromadb
+from utils import *
+from rank_bm25 import BM25Okapi
 import numpy as np
 
 load_dotenv()
@@ -43,60 +41,63 @@ def get_chunk_from_id(chunk_id_list):
         print(f"Some or all chunk IDs not found in the database.")
         return None
 
-# could be put in utils.py (can be used in retrieval)
-def collection_name_from_title(novel_title):
-    """
-    Generate a collection name based on the novel title.
-    """
-    # Remove spaces and special characters from the novel title
-    collection_name = "".join(e.lower() for e in novel_title if e.isalnum())
-    return collection_name
 
-
-def retrieve_context(query, novel_name, spoiler_threshold=None, k=5, embedding_model="mixedbread-ai/mxbai-embed-large-v1"):
+def retrieve_context(query, novel_name, spoiler_threshold=None, k=5):
     """
     Retrieve the top k most similar chunks from the index based on the query.
     """
+    # connect to the database
+    PG_PASSWORD = os.getenv("PG_PASSWORD")
+    PG_HOST = os.getenv("PG_HOST")
+    PG_USER = os.getenv("PG_USER")
+    PG_DB = os.getenv("PG_DB")
+    conn = psycopg2.connect(
+        host=PG_HOST,
+        dbname=PG_DB,
+        user=PG_USER,
+        password=PG_PASSWORD,
+        port="5432"
+    )
+    cursor = conn.cursor()
 
-    query_prompt = 'Represent this sentence for searching relevant passages: '
+    # Get the novel ID
+    novel_id = get_novel_id(novel_name, cursor, conn)
+    print(f"Novel ID for {novel_name}: {novel_id}")
 
-    # load the model
-    model = SentenceTransformer(embedding_model, device='cuda')
+    print(f"Retrieving chunks for {novel_name} ...")
+    if spoiler_threshold:
+        cursor.execute("SELECT chunks.id, chunks.preprocessed_chunk_content FROM chunks JOIN chapters ON chunks.chapter_id = chapters.id WHERE chapters.novel_id = %s AND chapters.chapter_number <= %s;",
+         (novel_id,spoiler_threshold,))
+    else:
+        cursor.execute("SELECT id, preprocessed_chunk_content FROM chunks WHERE novel_id = %s", (novel_id,))
 
-    # Encode the query
-    query_vector = model.encode(query_prompt + query)
+    chunks = cursor.fetchall()
 
-    # Normalize the query vector
-    query_vector = query_vector / np.linalg.norm(query_vector)
+    ids, tokenized_docs = map(list, zip(*chunks))
+    print(f"Number of chunks for novel {novel_name}: {len(tokenized_docs)}")
 
-    collection = chromadb.PersistentClient().get_or_create_collection(name=collection_name_from_title(novel_name))
+    if len(tokenized_docs) == 0:
+        print(f"No chunks found for novel {novel_name}.")
+        return
+
+    print("Creating BM25 index...")
+    bm25 = BM25Okapi(tokenized_docs)
+    print("Done creating BM25 index.")
+
+    # Tokenize the query
+    query_tokens = preprocess(query)    
 
     # Search for the top k nearest neighbors
-    if spoiler_threshold:
-        results = collection.query(
-            query_embeddings=[query_vector.tolist()],
-            n_results=k,
-            where={
-                "chapter_id":{
-                    "$lte": spoiler_threshold
-                }
-            }
-        )
-    else:
-        results = collection.query(
-            query_embeddings=[query_vector.tolist()],
-            n_results=k
-        )
-
+    print(f"Searching for the top {k} nearest neighbors...")
+    # results = bm25.get_top_n(query_tokens, tokenized_docs, n=k)
     # print(query_vector.tolist())
-
-    print(results)
+    scores = bm25.get_scores(query_tokens)
+    top_n_indices = np.argsort(scores)[::-1][:k]
     
 
-    ids = results['ids'][0]
-    print(ids)
+    top_ids = [ids[i] for i in top_n_indices]
 
-    chunks = get_chunk_from_id(ids)
+    chunks = get_chunk_from_id(top_ids)
 
     return chunks
 

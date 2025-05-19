@@ -8,3 +8,4 @@ app
 tests
 *.md
 *.index
+*.pkl

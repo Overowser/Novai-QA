@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS chunks (
     chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
     novel_id INTEGER REFERENCES novels(id) ON DELETE CASCADE,
     chunk_number INT NOT NULL,
-    chunk_content TEXT
+    chunk_content TEXT,
+    preprocessed_chunk_content TEXT[]
 );
 ''')
 
