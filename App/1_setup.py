@@ -1,32 +1,25 @@
-import psycopg2
-import os
-from dotenv import load_dotenv
+from utils import get_db_connection
+from logger_config import setup_logger
+import nltk
 
-load_dotenv()
+logger = setup_logger("database")
 
-PG_PASSWORD = os.getenv("PG_PASSWORD")
-PG_HOST = os.getenv("PG_HOST")
-PG_USER = os.getenv("PG_USER")
-PG_DB = os.getenv("PG_DB")
 
-conn = psycopg2.connect(
-    host=PG_HOST,
-    dbname=PG_DB,
-    user=PG_USER,
-    password=PG_PASSWORD,
-    port="5432"
-)
+conn = get_db_connection()
 
 cursor = conn.cursor()
-cursor.execute('''
+cursor.execute(
+    """
 CREATE TABLE IF NOT EXISTS novels (
     id SERIAL PRIMARY KEY,
     novel_title TEXT NOT NULL UNIQUE,
     novel_image TEXT
 );
-''')
+"""
+)
 
-cursor.execute('''
+cursor.execute(
+    """
 CREATE TABLE IF NOT EXISTS chapters (
     id SERIAL PRIMARY KEY,
     novel_id INTEGER REFERENCES novels(id) ON DELETE CASCADE,
@@ -35,9 +28,11 @@ CREATE TABLE IF NOT EXISTS chapters (
     chapter_url TEXT,
     chapter_content TEXT
 );
-''')
+"""
+)
 
-cursor.execute('''
+cursor.execute(
+    """
 CREATE TABLE IF NOT EXISTS chunks (
     id SERIAL PRIMARY KEY,
     chapter_id INTEGER REFERENCES chapters(id) ON DELETE CASCADE,
@@ -46,9 +41,20 @@ CREATE TABLE IF NOT EXISTS chunks (
     chunk_content TEXT,
     preprocessed_chunk_content TEXT[]
 );
-''')
+"""
+)
 
 conn.commit()
 
 cursor.close()
 conn.close()
+
+logger.info("Database setup completed.")
+
+# Download the necessary NLTK resources
+logger.info("Downloading NLTK resources...")
+nltk.download("averaged_perceptron_tagger_eng")
+nltk.download("punkt")
+nltk.download("stopwords")
+nltk.download("wordnet")
+logger.info("NLTK resources downloaded.")

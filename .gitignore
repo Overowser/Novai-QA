@@ -4,8 +4,8 @@ chroma
 data
 *.ipynb
 *.txt
-app
 tests
 *.md
 *.index
 *.pkl
+legacy

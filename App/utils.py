@@ -4,11 +4,27 @@ from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from nltk import pos_tag
 from nltk.corpus import wordnet
-import nltk
+from logger_config import setup_logger
+import psycopg2
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = setup_logger("utils")
 
 lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words('english'))
-# nltk.download('averaged_perceptron_tagger_eng')
+
+
+def get_db_connection():
+    PG_PASSWORD = os.getenv("PG_PASSWORD")
+    PG_HOST = os.getenv("PG_HOST")
+    PG_USER = os.getenv("PG_USER")
+    PG_DB = os.getenv("PG_DB")
+    return psycopg2.connect(
+        host=PG_HOST, dbname=PG_DB, user=PG_USER, password=PG_PASSWORD, port="5432"
+    )
 
 def get_wordnet_pos(treebank_tag):
     if treebank_tag.startswith('J'):
@@ -22,13 +38,12 @@ def get_wordnet_pos(treebank_tag):
     else:
         return wordnet.NOUN
 
-lemmatizer = WordNetLemmatizer()
-
 def lemmatize_with_pos(tokens):
     tagged = pos_tag(tokens)
     return [lemmatizer.lemmatize(word, get_wordnet_pos(tag)) for word, tag in tagged]
 
 def preprocess(text, do_lemmatize=True):
+    logger.debug("Starting preprocessing of text.")
     # Lowercase
     text = text.lower()
     # Remove non-alphabetical characters (optional)
@@ -40,19 +55,20 @@ def preprocess(text, do_lemmatize=True):
     # Lemmatize or stem
     if do_lemmatize:
         tokens = lemmatize_with_pos(tokens)
+    logger.debug("Finished preprocessing of text.")
     return tokens
 
-
-def get_novel_id(novel_title, cursor, conn):
+def get_novel_id(novel_title, cursor):
     """
     Fetch the novel ID from the database using the novel title.
     """
+    logger.debug("Fetching novel ID for title: %s", novel_title)
     cursor.execute("SELECT id FROM novels WHERE novel_title = %s", (novel_title,))
-
     result = cursor.fetchone()
     if result:
         novel_id = result[0]
+        logger.info("Found novel ID: %s for title: %s", novel_id, novel_title)
         return novel_id
     else:
-        print(f"Novel '{novel_title}' not found in the database.")
+        logger.warning("Novel '%s' not found in the database.", novel_title)
         return None
