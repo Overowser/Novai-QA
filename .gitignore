@@ -1,11 +1,10 @@
-venv
 chroma
 .env
 data
 *.ipynb
-*.txt
 tests
-*.md
 *.index
 *.pkl
 legacy
+.venv
+logs

@@ -63,7 +63,7 @@ def get_novel_id(novel_title, cursor):
     Fetch the novel ID from the database using the novel title.
     """
     logger.debug("Fetching novel ID for title: %s", novel_title)
-    cursor.execute("SELECT id FROM novels WHERE novel_title = %s", (novel_title,))
+    cursor.execute("SELECT id FROM novels WHERE novel_title LIKE %s", (novel_title,))
     result = cursor.fetchone()
     if result:
         novel_id = result[0]

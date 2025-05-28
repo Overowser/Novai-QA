@@ -1,0 +1,16 @@
+torch==2.7.0+cu118
+--extra-index-url https://download.pytorch.org/whl/cu118
+aiohttp==3.11.18
+beautifulsoup4==4.13.4
+chromadb==1.0.10
+fake_headers==1.0.2
+gradio==5.31.0
+nltk==3.9.1
+numpy==2.2.6
+ollama==0.4.8
+psycopg2==2.9.10
+python-dotenv==1.1.0
+rank_bm25==0.2.2
+sentence_transformers==4.1.0
+tqdm==4.67.1
+brotli==1.1.0

@@ -1,5 +1,4 @@
 from sentence_transformers import SentenceTransformer
-from datetime import datetime
 from nltk.tokenize import sent_tokenize
 from logger_config import setup_logger
 from utils import get_novel_id, get_db_connection
@@ -201,8 +200,5 @@ def chunking_novel(
 
 
 if __name__ == "__main__":
-    startTime = datetime.now()
-    logger.info("Starting refresh_database task")
     chunking_novel("Supreme Magus")
-    logger.info(f"Time taken: {datetime.now() - startTime}")
     # "Infinite Mana In The Apocalypse"

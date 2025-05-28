@@ -234,7 +234,6 @@ def clean_text(text):
         (r"(?<!\w)\.(\w)\.", r"\1"),
         (r"(?<=\w)\.(\w)", r"\1"),
         (r"(\w)\.(?=\w)", r"\1"),
-        (r"\+", " plus"),
     ]
 
     for pattern, replacement in replacements:
